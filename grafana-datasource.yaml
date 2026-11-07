@@ -1,0 +1,35 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasource-loki
+  namespace: monitoring
+  labels:
+    grafana_datasource: "1"
+    app.kubernetes.io/part-of: loki-stack
+data:
+  loki.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Loki
+        type: loki
+        access: proxy
+        uid: loki
+        url: http://loki-read.monitoring.svc.cluster.local:3100
+        isDefault: false
+        editable: true
+        jsonData:
+          httpHeaderName1: X-Scope-OrgID
+          derivedFields:
+            # ─── 日志 → Trace 联动 (后续对接 k8s-tempo-stack) ───
+            # 从日志中提取 traceID，Grafana 中可一键跳转到 Tempo
+            - datasourceUid: tempo
+              matcherRegex: 'trace_id[=:"\s]+(\w+)'
+              name: traceID
+              url: '$${__value.raw}'
+            - datasourceUid: tempo
+              matcherRegex: 'traceID[=:"\s]+(\w+)'
+              name: traceID2
+              url: '$${__value.raw}'
+        secureJsonData:
+          httpHeaderValue1: ""

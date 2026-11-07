@@ -1,0 +1,182 @@
+---
+# ── memberlist 集群内部发现 ─────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: loki-memberlist
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: loki
+    app.kubernetes.io/component: memberlist
+    app.kubernetes.io/part-of: loki-stack
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: http
+      port: 7946
+      targetPort: 7946
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: loki
+    app.kubernetes.io/part-of: loki-stack
+---
+# ── Read 路径 (Querier + QueryFrontend) ────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: loki-read-headless
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: loki
+    app.kubernetes.io/component: read
+    app.kubernetes.io/part-of: loki-stack
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: http
+      port: 3100
+      targetPort: 3100
+      protocol: TCP
+    - name: grpc
+      port: 9095
+      targetPort: 9095
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: loki
+    app.kubernetes.io/component: read
+    app.kubernetes.io/part-of: loki-stack
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: loki-query-frontend-headless
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: loki
+    app.kubernetes.io/component: query-frontend
+    app.kubernetes.io/part-of: loki-stack
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: grpc
+      port: 9095
+      targetPort: 9095
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: loki
+    app.kubernetes.io/component: read
+    app.kubernetes.io/part-of: loki-stack
+---
+# ── Grafana / 外部查询入口 ──────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: loki-read
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: loki
+    app.kubernetes.io/component: read
+    app.kubernetes.io/part-of: loki-stack
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 3100
+      targetPort: 3100
+      protocol: TCP
+    - name: grpc
+      port: 9095
+      targetPort: 9095
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: loki
+    app.kubernetes.io/component: read
+    app.kubernetes.io/part-of: loki-stack
+---
+# ── Write 路径 (Distributor + Ingester) ────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: loki-write-headless
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: loki
+    app.kubernetes.io/component: write
+    app.kubernetes.io/part-of: loki-stack
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: http
+      port: 3100
+      targetPort: 3100
+      protocol: TCP
+    - name: grpc
+      port: 9095
+      targetPort: 9095
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: loki
+    app.kubernetes.io/component: write
+    app.kubernetes.io/part-of: loki-stack
+---
+# ── Promtail 推送入口 ──────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: loki-write
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: loki
+    app.kubernetes.io/component: write
+    app.kubernetes.io/part-of: loki-stack
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 3100
+      targetPort: 3100
+      protocol: TCP
+    - name: grpc
+      port: 9095
+      targetPort: 9095
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: loki
+    app.kubernetes.io/component: write
+    app.kubernetes.io/part-of: loki-stack
+---
+# ── Backend 路径 (Compactor + IndexGateway + Ruler) ────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: loki-backend-headless
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: loki
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: loki-stack
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: http
+      port: 3100
+      targetPort: 3100
+      protocol: TCP
+    - name: grpc
+      port: 9095
+      targetPort: 9095
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: loki
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: loki-stack

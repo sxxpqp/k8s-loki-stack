@@ -1,0 +1,8 @@
+*.bak
+*.swp
+*~
+.idea/
+.vscode/
+*.tgz
+*.tar.gz
+Chart.lock

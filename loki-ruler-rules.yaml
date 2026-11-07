@@ -1,0 +1,51 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: loki-rules
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: loki
+    app.kubernetes.io/part-of: loki-stack
+data:
+  loki-alerts.yaml: |
+    groups:
+    - name: loki-ruler
+      interval: 30s
+      rules:
+      - alert: LokiHighLogVolume
+        expr: |
+          rate({job=~".+"}[5m]) > 1000
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "命名空间 {{ $labels.namespace }} 日志量过高"
+          description: "应用 {{ $labels.app }} 在过去5分钟平均每秒产生 {{ $value | printf \"%.0f\" }} 条日志"
+
+      - alert: LokiHighErrorRate
+        expr: |
+          sum(rate({job=~".+"} |~ "(?i)error|fatal|panic|exception"[5m])) by (namespace, app, job)
+          /
+          sum(rate({job=~".+"}[5m])) by (namespace, app, job)
+          > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "{{ $labels.namespace }}/{{ $labels.app }} 错误日志比例 > 10%"
+          description: "错误日志占比 {{ $value | humanizePercentage }}"
+
+      - alert: LokiHighLatency
+        expr: |
+          histogram_quantile(0.99, sum(rate(loki_request_duration_seconds_bucket[5m])) by (le, route))
+          > 5
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Loki 查询 P99 延迟 > 5s"
+          description: "路由 {{ $labels.route }} P99 延迟为 {{ $value }}s"

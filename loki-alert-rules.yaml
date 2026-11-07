@@ -1,0 +1,88 @@
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: loki-self-monitoring
+  namespace: monitoring
+  labels:
+    release: kps
+    team: platform
+    app.kubernetes.io/part-of: loki-stack
+spec:
+  groups:
+  - name: loki
+    interval: 30s
+    rules:
+    - alert: LokiRequestErrors
+      expr: |
+        100 * sum(rate(loki_request_duration_seconds_count{status_code=~"5.."}[5m])) by (route, namespace)
+        / sum(rate(loki_request_duration_seconds_count[5m])) by (route, namespace) > 10
+      for: 15m
+      labels:
+        severity: critical
+        team: platform
+      annotations:
+        summary: "Loki {{ $labels.route }} 5xx 错误率 > 10%"
+        description: "错误率 {{ $value | humanize }}%，命名空间 {{ $labels.namespace }}"
+    - alert: LokiRequestLatency
+      expr: |
+        histogram_quantile(0.99, sum(rate(loki_request_duration_seconds_bucket[5m])) by (le, route))
+        > 3
+      for: 15m
+      labels:
+        severity: warning
+        team: platform
+      annotations:
+        summary: "Loki {{ $labels.route }} P99 延迟 > 3s"
+        description: "当前 P99 为 {{ $value }}s"
+    - alert: LokiTooManyCompactorsRunning
+      expr: |
+        sum(loki_boltdb_shipper_compactor_running) > 1
+      for: 10m
+      labels:
+        severity: warning
+        team: platform
+      annotations:
+        summary: "多个 Loki compactor 同时运行"
+        description: "当前 {{ $value }} 个 compactor 在运行，超过1个可能导致重复压缩"
+    - alert: LokiUnhealthyRingMembers
+      expr: |
+        sum(rate(loki_ring_member_heartbeats_total{component=~"ingester|distributor|ruler|compactor"}[5m])) by (component)
+        == 0
+      for: 10m
+      labels:
+        severity: critical
+        team: platform
+      annotations:
+        summary: "Loki {{ $labels.component }} 心跳中断"
+        description: "组件 {{ $labels.component }} 5分钟内未发送心跳"
+    - alert: LokiHighChunkAge
+      expr: |
+        loki_ingester_chunk_age_seconds > 7200
+      for: 10m
+      labels:
+        severity: warning
+        team: platform
+      annotations:
+        summary: "Loki Ingester chunk 年龄 > 2h"
+        description: "Chunk 年龄 {{ $value }}s，可能影响查询性能"
+    - alert: PromtailFileLagging
+      expr: |
+        abs(promtail_file_bytes_total - promtail_read_bytes_total) > 1e6
+      for: 30m
+      labels:
+        severity: warning
+        team: platform
+      annotations:
+        summary: "Promtail 读取滞后超过 1MB"
+        description: "{{ $labels.instance }} 未读取字节数 {{ $value }}"
+    - alert: LokiWritePathUnhealthy
+      expr: |
+        max(loki_ingester_memory_chunks) - min(loki_ingester_memory_chunks) > 500
+      for: 15m
+      labels:
+        severity: warning
+        team: platform
+      annotations:
+        summary: "Loki Write 路径负载不均"
+        description: "Ingester 内存 chunk 数量差异过大 (max-min = {{ $value }})，可能有些节点负载过高"
