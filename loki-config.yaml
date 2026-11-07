@@ -145,6 +145,7 @@ data:
       max_query_parallelism: 32
       max_streams_per_user: 0
       max_query_length: 721h
+      max_label_names_per_series: 25
 
     # ── Tracing 集成 (后续对接 k8s-tempo-stack) ────────────────
     tracing:
